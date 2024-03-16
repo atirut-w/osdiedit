@@ -17,6 +17,7 @@ using namespace tabulate;
 int sector_size;
 fstream image;
 vector<OSDIPartition> partitions;
+vector<string> changelog;
 
 void list_partitions(vector<string>)
 {
@@ -26,7 +27,6 @@ void list_partitions(vector<string>)
         .column_separator(""); // TODO: PR a fix for this
 
     partitions_table.add_row({"ID", "Start sector", "Size", "Type", "Label"});
-
     for (int i = 1; i < partitions.size(); i++)
     {
         partitions_table.add_row({
@@ -37,8 +37,10 @@ void list_partitions(vector<string>)
             string(partitions[i].name) + (partitions[i].flags[1] & 0x02 ? "*" : " ")
         });
     }
-
     cout << partitions_table << endl;
+
+    if (changelog.size() > 0)
+        cout << "Warning: uncommitted changes" << endl;
 }
 
 int getchar_fixed()
@@ -70,22 +72,46 @@ void active_partition(vector<string> args)
             return;
         }
         
-        cout << "Set partition " << part_id << " (" << partitions[part_id].name << ") as active? [y/N]: ";
-        if (tolower(getchar_fixed()) == 'y')
+        for (int i = 0; i < partitions.size(); i++)
         {
-            for (int i = 0; i < partitions.size(); i++)
-            {
-                partitions[i].flags[1] &= ~0x02;
-            }
-            partitions[part_id].flags[1] |= 0x02;
+            partitions[i].flags[1] &= ~0x02;
         }
+        partitions[part_id].flags[1] |= 0x02;
+        changelog.push_back("Set partition " + to_string(part_id) + " as active");
     }
+}
+
+void commit(vector<string>)
+{
+    if (changelog.size() == 0)
+    {
+        cout << "Nothing to commit" << endl;
+        return;
+    }
+    
+    cout << "Changes so far:" << endl;
+    for (auto &change : changelog)
+    {
+        cout << " - " << change << endl;
+    }
+    cout << "Commit changes? [y/N]: ";
+    if (tolower(getchar_fixed()) != 'y')
+        return;
+    
+    image.seekp(0);
+    for (auto &part : partitions)
+    {
+        image.write(reinterpret_cast<char *>(&part), sizeof(OSDIPartition));
+    }
+    cout << "Committed " << changelog.size() << " changes" << endl;
+    changelog.clear();
 }
 
 map<string, function<void(vector<string>)>> commands = {
     {"exit", [](vector<string>) { exit(0); }},
     {"list", list_partitions},
-    {"active", active_partition}
+    {"active", active_partition},
+    {"commit", commit},
 };
 
 shared_ptr<const ArgumentParser> parse_args(int argc, char *argv[])
