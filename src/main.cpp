@@ -34,7 +34,7 @@ void list_partitions(vector<string>)
             to_string(partitions[i].start_sector),
             to_string(partitions[i].size * sector_size),
             partitions[i].type,
-            string(partitions[i].flags[1] & 0x02 ? "*" : "") + partitions[i].name
+            string(partitions[i].flags[1] & 0x02 ? "*" : " ") + partitions[i].name
         });
     }
 
