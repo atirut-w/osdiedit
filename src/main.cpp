@@ -6,6 +6,9 @@
 #include <iostream>
 #include <cstring>
 #include <algorithm>
+#include <map>
+#include <functional>
+#include <string>
 
 using namespace std;
 using namespace argparse;
@@ -13,6 +16,10 @@ using namespace argparse;
 int sector_size;
 fstream image;
 vector<OSDIPartition> partitions;
+
+map<string, function<void(int argc, char *argv[])>> commands = {
+    {"exit", [](int argc, char *argv[]) { exit(0); }},
+};
 
 shared_ptr<const ArgumentParser> parse_args(int argc, char *argv[])
 {
@@ -100,6 +107,27 @@ int main(int argc, char *argv[])
     else
     {
         cout << "Read in " << partitions.size() << " partitions" << endl;
+    }
+
+    while (1)
+    {
+        string cmd;
+        cout << "> ";
+        getline(cin, cmd);
+
+        if (commands.find(cmd) == commands.end())
+        {
+            cout << "Unknown command" << endl;
+            continue;
+        }
+
+        vector<char*> argv;
+        string word;
+        stringstream ss(cmd);
+        while (getline(ss, word, ' '))
+            argv.push_back(&word[0]);
+
+        commands[cmd](argv.size(), argv.data());
     }
     
     return 0;
