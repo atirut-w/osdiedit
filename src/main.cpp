@@ -26,13 +26,13 @@ void list_partitions(vector<string>)
     partitions_table.format()
         .column_separator(""); // TODO: PR a fix for this
 
-    partitions_table.add_row({"ID", "Start sector", "Size", "Type", "Label"});
+    partitions_table.add_row({"ID", "Start", "Size", "Type", "Label"});
     for (int i = 1; i < partitions.size(); i++)
     {
         partitions_table.add_row({
             to_string(i),
             to_string(partitions[i].start_sector),
-            to_string(partitions[i].size * sector_size),
+            to_string(partitions[i].size),
             partitions[i].type,
             string(partitions[i].name) + (partitions[i].flags[1] & 0x02 ? "*" : " ")
         });
