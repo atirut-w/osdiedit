@@ -41,9 +41,60 @@ void list_partitions(vector<string>)
     cout << partitions_table << endl;
 }
 
+char get_char()
+{
+    char c;
+    cin >> c;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    return c;
+}
+
+void active_partition(vector<string> args)
+{
+    if (args.size() < 2)
+    {
+        for (int i = 0; i < partitions.size(); i++)
+        {
+            if (partitions[i].flags[1] & 0x02)
+            {
+                cout << "Current active partition: " << partitions[i].name << " (partition " << i << ")" << endl;
+            }
+        }
+    }
+    else
+    {
+        int part_id;
+        try
+        {
+            part_id = stoi(args[1]);
+        }
+        catch (const exception &err)
+        {
+            cerr << "Invalid partition ID" << endl;
+            return;
+        }
+        if (part_id < 0 || part_id >= partitions.size())
+        {
+            cerr << "Invalid partition ID" << endl;
+            return;
+        }
+        
+        cout << "Set partition " << part_id << " (" << partitions[part_id].name << ") as active? [y/N]: ";
+        if (tolower(get_char()) == 'y')
+        {
+            for (int i = 0; i < partitions.size(); i++)
+            {
+                partitions[i].flags[1] &= ~0x02;
+            }
+            partitions[part_id].flags[1] |= 0x02;
+        }
+    }
+}
+
 map<string, function<void(vector<string>)>> commands = {
     {"exit", [](vector<string>) { exit(0); }},
-    {"list", list_partitions}
+    {"list", list_partitions},
+    {"active", active_partition}
 };
 
 shared_ptr<const ArgumentParser> parse_args(int argc, char *argv[])
