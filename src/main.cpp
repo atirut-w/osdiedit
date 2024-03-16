@@ -107,6 +107,7 @@ void commit(vector<string>)
     {
         image.write("\0", 1);
     }
+    image.flush();
 
     cout << "Committed " << changelog.size() << " changes" << endl;
     changelog.clear();
