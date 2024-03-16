@@ -150,11 +150,8 @@ int main(int argc, char *argv[])
     {
         cout << "Not an OSDI image. Create new partition table? [y/N] ";
 
-        char c;
-        cin >> c;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        if (c != 'Y' && c != 'y')
-            return 0;
+        if (tolower(get_char()) != 'y')
+            return 1;
 
         image.seekp(0);
         image.write("\0", sector_size);
