@@ -41,11 +41,11 @@ void list_partitions(vector<string>)
     cout << partitions_table << endl;
 }
 
-char get_char()
+int getchar_fixed()
 {
-    char c;
-    cin >> c;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    int c = getchar();
+    if (c != '\n')
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
     return c;
 }
 
@@ -80,7 +80,7 @@ void active_partition(vector<string> args)
         }
         
         cout << "Set partition " << part_id << " (" << partitions[part_id].name << ") as active? [y/N]: ";
-        if (tolower(get_char()) == 'y')
+        if (tolower(getchar_fixed()) == 'y')
         {
             for (int i = 0; i < partitions.size(); i++)
             {
@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
     {
         cout << "Not an OSDI image. Create new partition table? [y/N] ";
 
-        if (tolower(get_char()) != 'y')
+        if (tolower(getchar_fixed()) != 'y')
             return 1;
 
         image.seekp(0);
