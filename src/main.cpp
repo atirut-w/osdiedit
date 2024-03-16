@@ -20,7 +20,7 @@ vector<OSDIPartition> partitions;
 
 void list_partitions(vector<string>)
 {
-    cout << "Listing partitinos for " << partitions[0].name << endl;
+    cout << "Partition list for " << partitions[0].name << ":" << endl;
     Table partitions_table;
     partitions_table.format()
         .column_separator(""); // TODO: PR a fix for this
