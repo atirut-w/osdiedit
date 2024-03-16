@@ -63,16 +63,7 @@ void active_partition(vector<string> args)
     }
     else
     {
-        int part_id;
-        try
-        {
-            part_id = stoi(args[1]);
-        }
-        catch (const exception &err)
-        {
-            cerr << "Invalid partition ID" << endl;
-            return;
-        }
+        int part_id = stoi(args[1]);
         if (part_id < 1 || part_id >= partitions.size())
         {
             cerr << "Invalid partition ID" << endl;
