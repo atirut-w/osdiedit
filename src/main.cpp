@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        cout << "Read in " << partitions.size() << " partitions" << endl;
+        cout << "Read in " << partitions.size() - 1 << " partitions" << endl;
     }
 
     cout << "Type `help` for a list of available commands" << endl;
