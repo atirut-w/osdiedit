@@ -134,23 +134,40 @@ int main(int argc, char *argv[])
         cout << "Read in " << partitions.size() << " partitions" << endl;
     }
 
+    cout << "Type `help` for a list of available commands" << endl;
     while (1)
     {
         string cmd;
         cout << "> ";
         getline(cin, cmd);
 
-        if (commands.find(cmd) == commands.end())
+        vector<string> words;
+        string word;
+        stringstream ss(cmd);
+        while (getline(ss, word, ' '))
+            words.push_back(word);
+        
+        if (words.size() == 0)
         {
-            cout << "Unknown command" << endl;
+            continue;
+        }
+        else if (words[0] == "help")
+        {
+            for (auto pair : commands)
+            {
+                cout << pair.first << endl;
+            }
+            continue;
+        }
+        else if (commands.count(words[0]) == 0)
+        {
+            cerr << "Unknown command: " << words[0] << endl;
             continue;
         }
 
         vector<char*> argv;
-        string word;
-        stringstream ss(cmd);
-        while (getline(ss, word, ' '))
-            argv.push_back(&word[0]);
+        for (auto w : words)
+            argv.push_back(const_cast<char *>(w.c_str()));
 
         try
         {
