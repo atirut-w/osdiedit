@@ -103,6 +103,11 @@ void commit(vector<string>)
     {
         image.write(reinterpret_cast<char *>(&part), sizeof(OSDIPartition));
     }
+    for (int i = 0; i < sector_size - (sizeof(OSDIPartition) * partitions.size()); i++)
+    {
+        image.write("\0", 1);
+    }
+
     cout << "Committed " << changelog.size() << " changes" << endl;
     changelog.clear();
 }
