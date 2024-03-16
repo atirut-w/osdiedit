@@ -18,7 +18,7 @@ int sector_size;
 fstream image;
 vector<OSDIPartition> partitions;
 
-void list_partitions(int argc, char *argv[])
+void list_partitions(vector<string>)
 {
     cout << "Listing partitinos for " << partitions[0].name << endl;
     Table partitions_table;
@@ -41,8 +41,8 @@ void list_partitions(int argc, char *argv[])
     cout << partitions_table << endl;
 }
 
-map<string, function<void(int argc, char *argv[])>> commands = {
-    {"exit", [](int argc, char *argv[]) { exit(0); }},
+map<string, function<void(vector<string>)>> commands = {
+    {"exit", [](vector<string>) { exit(0); }},
     {"list", list_partitions}
 };
 
@@ -165,13 +165,9 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        vector<char*> argv;
-        for (auto w : words)
-            argv.push_back(const_cast<char *>(w.c_str()));
-
         try
         {
-            commands[cmd](argv.size(), argv.data());
+            commands[cmd](words);
         }
         catch (const exception &err)
         {
