@@ -73,7 +73,7 @@ void active_partition(vector<string> args)
             cerr << "Invalid partition ID" << endl;
             return;
         }
-        if (part_id < 0 || part_id >= partitions.size())
+        if (part_id < 1 || part_id >= partitions.size())
         {
             cerr << "Invalid partition ID" << endl;
             return;
