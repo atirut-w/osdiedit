@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 
         try
         {
-            commands[cmd](words);
+            commands[words[0]](words);
         }
         catch (const exception &err)
         {
