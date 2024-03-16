@@ -8,16 +8,42 @@
 #include <map>
 #include <functional>
 #include <string>
+#include <tabulate/table.hpp>
 
 using namespace std;
 using namespace argparse;
+using namespace tabulate;
 
 int sector_size;
 fstream image;
 vector<OSDIPartition> partitions;
 
+void list_partitions(int argc, char *argv[])
+{
+    cout << "Listing partitinos for " << partitions[0].name << endl;
+    Table partitions_table;
+    partitions_table.format()
+        .column_separator(""); // TODO: PR a fix for this
+
+    partitions_table.add_row({"ID", "Start sector", "Size", "Type", "Label"});
+
+    for (int i = 1; i < partitions.size(); i++)
+    {
+        partitions_table.add_row({
+            to_string(i),
+            to_string(partitions[i].start_sector),
+            to_string(partitions[i].size * sector_size),
+            partitions[i].type,
+            string(partitions[i].flags[1] & 0x02 ? "*" : "") + partitions[i].name
+        });
+    }
+
+    cout << partitions_table << endl;
+}
+
 map<string, function<void(int argc, char *argv[])>> commands = {
     {"exit", [](int argc, char *argv[]) { exit(0); }},
+    {"list", list_partitions}
 };
 
 shared_ptr<const ArgumentParser> parse_args(int argc, char *argv[])
@@ -126,7 +152,14 @@ int main(int argc, char *argv[])
         while (getline(ss, word, ' '))
             argv.push_back(&word[0]);
 
-        commands[cmd](argv.size(), argv.data());
+        try
+        {
+            commands[cmd](argv.size(), argv.data());
+        }
+        catch (const exception &err)
+        {
+            cerr << err.what() << endl;
+        }
     }
     
     return 0;
