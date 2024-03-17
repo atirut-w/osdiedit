@@ -15,6 +15,7 @@ using namespace argparse;
 using namespace tabulate;
 
 int sector_size;
+int disk_size;
 fstream image;
 vector<OSDIPartition> partitions;
 vector<string> changelog;
@@ -159,6 +160,10 @@ int main(int argc, char *argv[])
     }
 
     sector_size = args->get<int>("-s");
+    image.seekg(0, ios::end);
+    disk_size = image.tellg() / sector_size;
+    image.seekg(0);
+
     cout << "Reading partition table..." << endl;
     for (int i = 0; i < sector_size / sizeof(OSDIPartition); ++i)
     {
