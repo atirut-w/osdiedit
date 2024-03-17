@@ -22,7 +22,7 @@ vector<string> changelog;
 
 void list_partitions(vector<string>)
 {
-    cout << "Partition list for " << partitions[0].name << ":" << endl;
+    cout << "Partition list for " << partitions[0].name << " (" << disk_size << " sectors)" << endl;
     Table partitions_table;
     partitions_table.format()
         .column_separator(""); // TODO: PR a fix for this
