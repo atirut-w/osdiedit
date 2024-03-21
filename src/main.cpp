@@ -1,6 +1,6 @@
 #include <argparse/argparse.hpp>
 #include <memory>
-#include <osdi.hpp>
+#include <osdi/osdi.hpp>
 #include <fstream>
 #include <vector>
 #include <iostream>
@@ -13,16 +13,17 @@
 using namespace std;
 using namespace argparse;
 using namespace tabulate;
+using namespace OSDI;
 
 int sector_size;
 int disk_size;
 fstream image;
-vector<OSDIPartition> partitions;
+vector<Partition> partitions;
 vector<string> changelog;
 
 void list_partitions(vector<string>)
 {
-    cout << "Partition list for " << partitions[0].name << " (" << disk_size << " sectors)" << endl;
+    cout << "Partition list for " << partitions[0].label << " (" << disk_size << " sectors)" << endl;
     Table partitions_table;
     partitions_table.format()
         .column_separator(""); // TODO: PR a fix for this
@@ -32,10 +33,10 @@ void list_partitions(vector<string>)
     {
         partitions_table.add_row({
             to_string(i),
-            to_string(partitions[i].start_sector),
+            to_string(partitions[i].start),
             to_string(partitions[i].size),
             partitions[i].type,
-            string(partitions[i].name) + (partitions[i].flags[1] & 0x02 ? "*" : " ")
+            string(partitions[i].label) + (partitions[i].flags & Partition::ACTIVE ? "*" : " ")
         });
     }
     cout << partitions_table << endl;
@@ -58,9 +59,9 @@ void active_partition(vector<string> args)
     {
         for (int i = 0; i < partitions.size(); i++)
         {
-            if (partitions[i].flags[1] & 0x02)
+            if (partitions[i].flags & Partition::ACTIVE)
             {
-                cout << "Current active partition: " << partitions[i].name << " (partition " << i << ")" << endl;
+                cout << "Current active partition: " << partitions[i].label << " (partition " << i << ")" << endl;
             }
         }
     }
@@ -75,9 +76,9 @@ void active_partition(vector<string> args)
         
         for (int i = 0; i < partitions.size(); i++)
         {
-            partitions[i].flags[1] &= ~0x02;
+            partitions[i].flags &= ~Partition::ACTIVE;
         }
-        partitions[part_id].flags[1] |= 0x02;
+        partitions[part_id].flags |= Partition::ACTIVE;
         changelog.push_back("Set partition " + to_string(part_id) + " as active");
     }
 }
@@ -102,9 +103,9 @@ void commit(vector<string>)
     image.seekp(0);
     for (auto &part : partitions)
     {
-        image.write(reinterpret_cast<char *>(&part), sizeof(OSDIPartition));
+        part.write(image);
     }
-    for (int i = 0; i < sector_size - (sizeof(OSDIPartition) * partitions.size()); i++)
+    for (int i = 0; i < sector_size - (sizeof(Partition) * partitions.size()); i++)
     {
         image.write("\0", 1);
     }
@@ -165,12 +166,11 @@ int main(int argc, char *argv[])
     image.seekg(0);
 
     cout << "Reading partition table..." << endl;
-    for (int i = 0; i < sector_size / sizeof(OSDIPartition); ++i)
+    for (int i = 0; i < sector_size / sizeof(Partition); ++i)
     {
-        OSDIPartition partition;
-        image.read(reinterpret_cast<char *>(&partition), sizeof(OSDIPartition));
+        Partition partition = Partition(image);
         
-        if (*(uint64_t *)&partition.type != 0)
+        if (partition.type != "")
             partitions.push_back(partition);
     }
 
@@ -185,22 +185,22 @@ int main(int argc, char *argv[])
         image.write("\0", sector_size);
         image.seekp(0);
 
-        OSDIPartition signature;
-        signature.start_sector = 1; // Only version 1 is supported
+        Partition signature;
+        signature.start = 1; // Only version 1 is supported
         signature.size = 0;
-        memcpy(signature.type, "OSDI\xaa\xaa\x55\x55", 8);
-        memset(signature.flags, 0, 3);
+        signature.type = "OSDI\xaa\xaa\x55\x55";
+        signature.flags = 0;
 
-        memcpy(signature.name, "osdi-", 5);
+        signature.label = "osdi-";
         srand(time(nullptr));
-        for (int i = 0; i < 8; ++i)
-            signature.name[5 + i] = '0' + (rand() % 10);
-        
-        image.write(reinterpret_cast<const char *>(&signature), sizeof(OSDIPartition));
+        for (int i = 0; i < (13 - signature.label.length()); ++i)
+            signature.label += '0' + (rand() % 10);
+
+        signature.write(image);
         partitions.clear();
         partitions.push_back(signature);
     }
-    else if (partitions[0].start_sector != 1)
+    else if (partitions[0].start != 1)
     {
         cout << "Unsupported partition table version" << endl;
         return 1;
