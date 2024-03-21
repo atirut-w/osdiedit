@@ -1,6 +1,7 @@
 #include <osdi/osdi.hpp>
 #include <cstdint>
 #include <cstring>
+#include <algorithm>
 
 using namespace OSDI;
 
@@ -26,7 +27,12 @@ void Partition::write(std::ostream &stream)
 {
     stream.write(reinterpret_cast<const char *>(&start), sizeof(uint32_t));
     stream.write(reinterpret_cast<const char *>(&size), sizeof(uint32_t));
-    stream.write(type.c_str(), 8);
+
+    stream.write(type.c_str(), std::min<int>(type.size(), 8));
+    stream.seekp(8 - type.size(), std::ios_base::cur);
+
     stream.write(reinterpret_cast<const char *>(&flags), 3);
-    stream.write(label.c_str(), 13);
+
+    stream.write(label.c_str(), std::min<int>(label.size(), 13));
+    stream.seekp(13 - label.size(), std::ios_base::cur);
 }
