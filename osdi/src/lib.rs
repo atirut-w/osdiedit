@@ -1,11 +1,12 @@
 use std::{
     fs::File,
-    io::{BufReader, Read, Seek, SeekFrom},
+    io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
 };
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub struct Disk {
+    pub label: [u8; 13],
     pub sector_size: usize,
     pub size: usize,
     pub partitions: Vec<Partition>,
@@ -16,6 +17,7 @@ impl Disk {
         mut reader: BufReader<&File>,
         sector_size: usize,
     ) -> Result<Self, std::io::Error> {
+        let mut label = [0; 13];
         let mut partitions = vec![];
 
         for i in 0..(sector_size / 32) {
@@ -36,6 +38,7 @@ impl Disk {
                         "Invalid OSDI disk signature",
                     ));
                 };
+                label = name;
                 continue;
             }
 
@@ -60,10 +63,50 @@ impl Disk {
         let size = reader.seek(SeekFrom::End(0))? / sector_size as u64;
 
         Ok(Disk {
+            label,
             sector_size,
             size: size as usize,
             partitions,
         })
+    }
+
+    pub fn to_file(&self, mut writer: BufWriter<&File>) -> Result<(), std::io::Error> {
+        writer.seek(SeekFrom::Start(0))?;
+        writer.write_u32::<LittleEndian>(1)?;
+        writer.write_u32::<LittleEndian>(0)?;
+        writer.write_all(b"OSDI\xaa\xaa\x55\x55")?;
+        writer.write_u8(0)?;
+        writer.write_u8(0)?;
+        writer.write_u8(0)?;
+        writer.write_all(&self.label)?;
+
+        for partition in &self.partitions {
+            writer.write_u32::<LittleEndian>(partition.start + 1)?;
+            writer.write_u32::<LittleEndian>((partition.data.len() / self.sector_size as usize) as u32)?;
+            writer.write_all(&partition.type_id)?;
+            writer.write_u8((partition.flags & 0xff) as u8)?;
+            writer.write_u8(((partition.flags >> 8) & 0xff) as u8)?;
+            writer.write_u8(((partition.flags >> 16) & 0xff) as u8)?;
+            writer.write_all(&partition.name)?;
+        }
+
+        for _ in self.partitions.len()..(self.sector_size / 32) - 1 {
+            writer.write_u32::<LittleEndian>(0)?;
+            writer.write_u32::<LittleEndian>(0)?;
+            writer.write_all(&[0; 8])?;
+            writer.write_u8(0)?;
+            writer.write_u8(0)?;
+            writer.write_u8(0)?;
+            writer.write_all(&[0; 13])?;
+        }
+
+        for partition in &self.partitions {
+            writer.seek(SeekFrom::Start(partition.start as u64 * self.sector_size as u64))?;
+            writer.write_all(&partition.data)?;
+        }
+
+        writer.flush()?;
+        Ok(())
     }
 }
 
@@ -78,7 +121,7 @@ pub struct Partition {
 impl Partition {
     pub fn query_flags(&self) -> Vec<String> {
         let mut flags = vec![];
-        
+
         if self.flags & PartitionFlags::OS as u32 != 0 {
             flags.push("OS".to_string());
         }

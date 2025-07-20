@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs::File, io::Write};
 
 use clap::Parser;
+use dialoguer::Confirm;
 use osdi::Disk;
 use shell_words::split;
 
@@ -16,13 +17,13 @@ struct Args {
 
 struct Command {
     description: String,
-    execute: Box<dyn FnMut(&Disk, Vec<String>) -> Result<(), String>>,
+    execute: Box<dyn FnMut(&Disk, Vec<String>) -> Result<bool, String>>,
 }
 
 impl Command {
     pub fn new(
         description: String,
-        execute: Box<dyn FnMut(&Disk, Vec<String>) -> Result<(), String>>,
+        execute: Box<dyn FnMut(&Disk, Vec<String>) -> Result<bool, String>>,
     ) -> Self {
         Command {
             description,
@@ -31,18 +32,18 @@ impl Command {
     }
 }
 
-fn info(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
+fn info(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
     println!("Sector Size: {} bytes", disk.sector_size);
     println!("Total Size in Sectors: {}", disk.size);
     println!("Number of Partitions: {}", disk.partitions.len());
-    Ok(())
+    Ok(false)
 }
 
-fn list(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
+fn list(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
     let partitions = &disk.partitions;
     if partitions.is_empty() {
         println!("No partitions found.");
-        return Ok(());
+        return Ok(false);
     }
 
     println!(
@@ -65,12 +66,12 @@ fn list(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
         );
     }
 
-    Ok(())
+    Ok(false)
 }
 
 fn main() {
     let args = Args::parse();
-    let file = match File::open(&args.disk) {
+    let file = match File::options().read(true).write(true).open(&args.disk) {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Error opening disk {}: {}", args.disk, e);
@@ -95,6 +96,8 @@ fn main() {
         "list".to_string(),
         Command::new("List all partitions".to_string(), Box::new(list)),
     );
+
+    let mut changelog = vec![];
 
     println!("Type 'help' for a list of commands.");
     loop {
@@ -132,10 +135,41 @@ fn main() {
                 println!("Exiting...");
                 break;
             }
+            "commit" => {
+                // if changelog.is_empty() {
+                //     println!("No changes to commit.");
+                //     continue;
+                // }
+
+                println!("You have made the following changes:");
+                for change in &changelog {
+                    println!("- {}", change);
+                }
+                if Confirm::new()
+                    .with_prompt("Do you want to commit these changes?")
+                    .default(true)
+                    .interact()
+                    .unwrap_or(false)
+                {
+                    println!("Committing changes...");
+                    // Reuse the file handle that was opened with read-write permissions
+                    let writer = std::io::BufWriter::new(&file);
+                    if let Err(e) = disk.to_file(writer) {
+                        eprintln!("Error writing to disk: {}", e);
+                    } else {
+                        println!("Changes committed successfully.");
+                        changelog.clear(); // Clear the changelog after successful commit
+                    }
+                }
+            }
             _ => {
                 if let Some(command) = commands.get_mut(command_name) {
                     match (command.execute)(&disk, args[1..].to_vec()) {
-                        Ok(_) => {}
+                        Ok(changed) => {
+                            if changed {
+                                changelog.push(args.join(" "));
+                            }
+                        }
                         Err(e) => eprintln!("{}", e),
                     }
                 } else {
