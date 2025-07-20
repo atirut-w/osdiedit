@@ -31,6 +31,13 @@ impl Command {
     }
 }
 
+fn info(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
+    println!("Sector Size: {} bytes", disk.sector_size);
+    println!("Total Size in Sectors: {}", disk.size);
+    println!("Number of Partitions: {}", disk.partitions.len());
+    Ok(())
+}
+
 fn list(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
     let partitions = &disk.partitions;
     if partitions.is_empty() {
@@ -80,6 +87,10 @@ fn main() {
     };
 
     let mut commands: HashMap<String, Command> = HashMap::new();
+    commands.insert(
+        "info".to_string(),
+        Command::new("Show disk information".to_string(), Box::new(info)),
+    );
     commands.insert(
         "list".to_string(),
         Command::new("List all partitions".to_string(), Box::new(list)),
