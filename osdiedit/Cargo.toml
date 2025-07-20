@@ -1,0 +1,7 @@
+[package]
+name = "osdiedit"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+osdi = { version = "0.1.0", path = "../osdi" }
