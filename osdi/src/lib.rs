@@ -82,7 +82,9 @@ impl Disk {
 
         for partition in &self.partitions {
             writer.write_u32::<LittleEndian>(partition.start + 1)?;
-            writer.write_u32::<LittleEndian>((partition.data.len() / self.sector_size as usize) as u32)?;
+            writer.write_u32::<LittleEndian>(
+                (partition.data.len() / self.sector_size as usize) as u32,
+            )?;
             writer.write_all(&partition.type_id)?;
             writer.write_u8((partition.flags & 0xff) as u8)?;
             writer.write_u8(((partition.flags >> 8) & 0xff) as u8)?;
@@ -101,7 +103,9 @@ impl Disk {
         }
 
         for partition in &self.partitions {
-            writer.seek(SeekFrom::Start(partition.start as u64 * self.sector_size as u64))?;
+            writer.seek(SeekFrom::Start(
+                partition.start as u64 * self.sector_size as u64,
+            ))?;
             writer.write_all(&partition.data)?;
         }
 
