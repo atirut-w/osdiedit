@@ -39,21 +39,22 @@ fn list(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
     }
 
     println!(
-        "{:<5} {:<8} {:<12} {:<10} {:<10} {:<8}",
-        "Idx", "Type", "Name", "Start", "End", "Size"
+        "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8}",
+        "Idx", "Type", "Name", "Start", "End", "Size", "Flags"
     );
     for (idx, partition) in partitions.iter().enumerate() {
         let start = partition.start;
         let size = partition.data.len() / disk.sector_size;
         let end = start + size as u32;
         println!(
-            "{:<5} {:<8} {:<12} {:<10} {:<10} {:<8}",
+            "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8x}",
             idx,
             String::from_utf8_lossy(&partition.type_id).trim_end_matches('\0'),
             String::from_utf8_lossy(&partition.name).trim_end_matches('\0'),
             start,
             end,
             size,
+            partition.flags,
         );
     }
 
