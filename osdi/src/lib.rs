@@ -7,6 +7,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 pub struct Disk {
     pub sector_size: usize,
+    pub size: usize,
     pub partitions: Vec<Partition>,
 }
 
@@ -56,8 +57,11 @@ impl Disk {
             reader.read_exact(&mut partition.data)?;
         }
 
+        let size = reader.seek(SeekFrom::End(0))? / sector_size as u64;
+
         Ok(Disk {
             sector_size,
+            size: size as usize,
             partitions,
         })
     }
