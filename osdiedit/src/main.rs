@@ -33,6 +33,7 @@ impl Command {
 }
 
 fn info(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
+    println!("Information for disk '{}':", String::from_utf8_lossy(&disk.label).trim_end_matches('\0'));
     println!("Sector Size: {} bytes", disk.sector_size);
     println!("Total Size in Sectors: {}", disk.size);
     println!("Number of Partitions: {}", disk.partitions.len());
@@ -126,20 +127,17 @@ fn main() {
             "help" => {
                 println!("{:<10} {:<8}", "Command", "Description");
                 println!("{:<10} {:<8}", "help", "Show this help");
+                println!("{:<10} {:<8}", "commit", "Commit changes to disk");
                 println!("{:<10} {:<8}", "exit", "Exit the program");
                 for (name, command) in &commands {
                     println!("{:<10} {:<8}", name, command.description);
                 }
             }
-            "exit" => {
-                println!("Exiting...");
-                break;
-            }
             "commit" => {
-                // if changelog.is_empty() {
-                //     println!("No changes to commit.");
-                //     continue;
-                // }
+                if changelog.is_empty() {
+                    println!("No changes to commit.");
+                    continue;
+                }
 
                 println!("You have made the following changes:");
                 for change in &changelog {
@@ -152,15 +150,18 @@ fn main() {
                     .unwrap_or(false)
                 {
                     println!("Committing changes...");
-                    // Reuse the file handle that was opened with read-write permissions
                     let writer = std::io::BufWriter::new(&file);
                     if let Err(e) = disk.to_file(writer) {
                         eprintln!("Error writing to disk: {}", e);
                     } else {
                         println!("Changes committed successfully.");
-                        changelog.clear(); // Clear the changelog after successful commit
+                        changelog.clear();
                     }
                 }
+            }
+            "exit" => {
+                println!("Exiting...");
+                break;
             }
             _ => {
                 if let Some(command) = commands.get_mut(command_name) {
