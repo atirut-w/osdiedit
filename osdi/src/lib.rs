@@ -74,3 +74,70 @@ pub struct Partition {
     pub name: [u8; 13],
     pub data: Vec<u8>,
 }
+
+impl Partition {
+    pub fn query_flags(&self) -> Vec<String> {
+        let mut flags = vec![];
+        
+        if self.flags & PartitionFlags::OS as u32 != 0 {
+            flags.push("OS".to_string());
+        }
+        if self.flags & PartitionFlags::Bootloader as u32 != 0 {
+            flags.push("Bootloader".to_string());
+        }
+        if self.flags & PartitionFlags::PosixPermissions as u32 != 0 {
+            flags.push("POSIX".to_string());
+        }
+        if self.flags & PartitionFlags::ReadOnly as u32 != 0 {
+            flags.push("RO".to_string());
+        }
+        if self.flags & PartitionFlags::Hidden as u32 != 0 {
+            flags.push("Hidden".to_string());
+        }
+        if self.flags & PartitionFlags::System as u32 != 0 {
+            flags.push("System".to_string());
+        }
+        if self.flags & PartitionFlags::Zorya as u32 != 0 {
+            flags.push("Zorya".to_string());
+        }
+        if self.flags & PartitionFlags::Managed as u32 != 0 {
+            flags.push("Managed".to_string());
+        }
+        if self.flags & PartitionFlags::Raw as u32 != 0 {
+            flags.push("Raw".to_string());
+        }
+        if self.flags & PartitionFlags::Active as u32 != 0 {
+            flags.push("Active".to_string());
+        }
+        if self.flags & PartitionFlags::OEFI as u32 != 0 {
+            flags.push("OEFI".to_string());
+        }
+
+        flags
+    }
+}
+
+pub enum PartitionFlags {
+    /// Constains an OS
+    OS = 0x000001,
+    /// Contains a bootloader
+    Bootloader = 0x000002,
+    /// Has POSIX permissions
+    PosixPermissions = 0x000004,
+    /// Is read-only
+    ReadOnly = 0x000008,
+    /// Is hidden
+    Hidden = 0x000010,
+    /// Is a system partition
+    System = 0x000020,
+    /// Zorya special value
+    Zorya = 0x000040,
+    /// Managed FS emulation
+    Managed = 0x000080,
+    /// Raw data partition
+    Raw = 0x000100,
+    /// Active partition
+    Active = 0x000200,
+    /// OEFI hint mask
+    OEFI = 0x000c00,
+}

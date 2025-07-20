@@ -54,14 +54,14 @@ fn list(disk: &Disk, _args: Vec<String>) -> Result<(), String> {
         let size = partition.data.len() / disk.sector_size;
         let end = start + size as u32;
         println!(
-            "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8x}",
+            "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8}",
             idx,
             String::from_utf8_lossy(&partition.type_id).trim_end_matches('\0'),
             String::from_utf8_lossy(&partition.name).trim_end_matches('\0'),
             start,
             end,
             size,
-            partition.flags,
+            partition.query_flags().join(", "),
         );
     }
 
