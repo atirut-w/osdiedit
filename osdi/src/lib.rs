@@ -162,6 +162,18 @@ impl Partition {
 
         flags
     }
+
+    pub fn get_type_id(&self) -> String {
+        String::from_utf8_lossy(&self.type_id).trim_end_matches('\0').to_string()
+    }
+
+    pub fn get_name(&self) -> String {
+        String::from_utf8_lossy(&self.name).trim_end_matches('\0').to_string()
+    }
+
+    pub fn get_sector_count(&self, sector_size: usize) -> usize {
+        (self.data.len() + sector_size - 1) / sector_size
+    }
 }
 
 pub enum PartitionFlags {

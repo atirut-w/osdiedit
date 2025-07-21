@@ -53,16 +53,15 @@ fn list(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
     );
     for (idx, partition) in partitions.iter().enumerate() {
         let start = partition.start;
-        let size = partition.data.len() / disk.sector_size;
-        let end = start + size as u32;
+        let end = start + partition.get_sector_count(disk.sector_size) as u32;
         println!(
             "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8}",
             idx,
-            String::from_utf8_lossy(&partition.type_id).trim_end_matches('\0'),
-            String::from_utf8_lossy(&partition.name).trim_end_matches('\0'),
+            partition.get_type_id(),
+            partition.get_name(),
             start,
             end,
-            size,
+            partition.get_sector_count(disk.sector_size),
             partition.query_flags().join(", "),
         );
     }
