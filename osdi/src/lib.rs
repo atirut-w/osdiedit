@@ -48,16 +48,11 @@ impl Disk {
 
             partitions.push(Partition {
                 start: start - 1, // Convert to zero-based index
+                size,
                 type_id,
                 flags,
                 name,
-                data: vec![0; (size as usize) * sector_size],
             });
-        }
-
-        for partition in &mut partitions {
-            reader.seek(SeekFrom::Start(partition.start as u64 * sector_size as u64))?;
-            reader.read_exact(&mut partition.data)?;
         }
 
         let size = reader.seek(SeekFrom::End(0))? / sector_size as u64;
@@ -82,9 +77,7 @@ impl Disk {
 
         for partition in &self.partitions {
             writer.write_u32::<LittleEndian>(partition.start + 1)?;
-            writer.write_u32::<LittleEndian>(
-                (partition.data.len() / self.sector_size as usize) as u32,
-            )?;
+            writer.write_u32::<LittleEndian>(partition.size)?;
             writer.write_all(&partition.type_id)?;
             writer.write_u8((partition.flags & 0xff) as u8)?;
             writer.write_u8(((partition.flags >> 8) & 0xff) as u8)?;
@@ -102,13 +95,6 @@ impl Disk {
             writer.write_all(&[0; 13])?;
         }
 
-        for partition in &self.partitions {
-            writer.seek(SeekFrom::Start(
-                partition.start as u64 * self.sector_size as u64,
-            ))?;
-            writer.write_all(&partition.data)?;
-        }
-
         writer.flush()?;
         Ok(())
     }
@@ -116,10 +102,10 @@ impl Disk {
 
 pub struct Partition {
     pub start: u32,
+    pub size: u32,
     pub type_id: [u8; 8],
     pub flags: u32,
     pub name: [u8; 13],
-    pub data: Vec<u8>,
 }
 
 impl Partition {
@@ -169,10 +155,6 @@ impl Partition {
 
     pub fn get_name(&self) -> String {
         String::from_utf8_lossy(&self.name).trim_end_matches('\0').to_string()
-    }
-
-    pub fn get_sector_count(&self, sector_size: usize) -> usize {
-        (self.data.len() + sector_size - 1) / sector_size
     }
 }
 

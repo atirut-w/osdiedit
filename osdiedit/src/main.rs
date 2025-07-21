@@ -49,19 +49,19 @@ fn list(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
 
     println!(
         "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8}",
-        "Idx", "Type", "Name", "Start", "End", "Size", "Flags"
+        "Idx", "Type", "Name", "Start", "Size", "End", "Flags"
     );
     for (idx, partition) in partitions.iter().enumerate() {
         let start = partition.start;
-        let end = start + partition.get_sector_count(disk.sector_size) as u32;
+        let end = start + partition.size - 1;
         println!(
             "{:<5} {:<8} {:<12} {:<8} {:<8} {:<8} {:<8}",
             idx,
             partition.get_type_id(),
             partition.get_name(),
             start,
+            partition.size,
             end,
-            partition.get_sector_count(disk.sector_size),
             partition.query_flags().join(", "),
         );
     }
