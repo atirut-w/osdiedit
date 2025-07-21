@@ -17,13 +17,13 @@ struct Args {
 
 struct Command {
     description: String,
-    execute: Box<dyn FnMut(&Disk, Vec<String>) -> Result<bool, String>>,
+    execute: Box<dyn FnMut(&mut Context, Vec<String>) -> Result<bool, String>>,
 }
 
 impl Command {
     pub fn new(
         description: String,
-        execute: Box<dyn FnMut(&Disk, Vec<String>) -> Result<bool, String>>,
+        execute: Box<dyn FnMut(&mut Context, Vec<String>) -> Result<bool, String>>,
     ) -> Self {
         Command {
             description,
@@ -32,7 +32,13 @@ impl Command {
     }
 }
 
-fn info(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
+struct Context {
+    file: File,
+    disk: Disk,
+}
+
+fn info(context: &mut Context, _args: Vec<String>) -> Result<bool, String> {
+    let disk = &context.disk;
     println!("Information for disk '{}':", String::from_utf8_lossy(&disk.label).trim_end_matches('\0'));
     println!("Sector Size: {} bytes", disk.sector_size);
     println!("Total Size in Sectors: {}", disk.size);
@@ -40,8 +46,8 @@ fn info(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
     Ok(false)
 }
 
-fn list(disk: &Disk, _args: Vec<String>) -> Result<bool, String> {
-    let partitions = &disk.partitions;
+fn list(context: &mut Context, _args: Vec<String>) -> Result<bool, String> {
+    let partitions = &context.disk.partitions;
     if partitions.is_empty() {
         println!("No partitions found.");
         return Ok(false);
@@ -87,6 +93,11 @@ fn main() {
         }
     };
 
+    let mut context = Context {
+        file,
+        disk,
+    };
+
     let mut commands: HashMap<String, Command> = HashMap::new();
     commands.insert(
         "info".to_string(),
@@ -97,7 +108,7 @@ fn main() {
         Command::new("List all partitions".to_string(), Box::new(list)),
     );
 
-    let mut changelog = vec![];
+    let mut changelog: Vec<String> = Vec::new();
 
     println!("Type 'help' for a list of commands.");
     loop {
@@ -149,8 +160,8 @@ fn main() {
                     .unwrap_or(false)
                 {
                     println!("Committing changes...");
-                    let writer = std::io::BufWriter::new(&file);
-                    if let Err(e) = disk.to_file(writer) {
+                    let writer = std::io::BufWriter::new(&context.file);
+                    if let Err(e) = context.disk.to_file(writer) {
                         eprintln!("Error writing to disk: {}", e);
                     } else {
                         println!("Changes committed successfully.");
@@ -164,7 +175,7 @@ fn main() {
             }
             _ => {
                 if let Some(command) = commands.get_mut(command_name) {
-                    match (command.execute)(&disk, args[1..].to_vec()) {
+                    match (command.execute)(&mut context, args[1..].to_vec()) {
                         Ok(changed) => {
                             if changed {
                                 changelog.push(args.join(" "));
