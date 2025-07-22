@@ -6,7 +6,7 @@ use std::{
 
 use clap::Parser;
 use dialoguer::Confirm;
-use osdi::Disk;
+use osdi::{Disk, Partition};
 use shell_words::split;
 
 #[derive(Parser)]
@@ -39,6 +39,13 @@ impl Command {
 struct Context {
     file: File,
     disk: Disk,
+}
+
+fn validate_partid(disk: &Disk, partid: usize) -> Result<&Partition, String> {
+    if partid >= disk.partitions.len() {
+        return Err(format!("Partition index {} does not exist", partid));
+    }
+    Ok(&disk.partitions[partid])
 }
 
 fn info(context: &mut Context, _args: &Vec<String>) -> Result<bool, String> {
@@ -93,17 +100,9 @@ struct DumpArgs {
 
 fn dump(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
     let dump_args = DumpArgs::try_parse_from(args).map_err(|e| e.to_string())?;
-    
-    let partition = match context.disk.partitions.get(dump_args.index) {
-        Some(partition) => partition,
-        None => {
-            return Err(format!(
-                "Partition index {} does not exist",
-                dump_args.index
-            ));
-        }
-    };
-    
+
+    let partition = validate_partid(&context.disk, dump_args.index)?;
+
     let file = match File::create(&dump_args.file) {
         Ok(file) => file,
         Err(e) => {
