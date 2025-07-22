@@ -166,13 +166,17 @@ fn flag(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
     validate_partid(&context.disk, flag_args.index)?;
     let partition: &mut Partition = &mut context.disk.partitions[flag_args.index];
 
-    let flags = Partition::parse_flags(
-        flag_args
-            .flags
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .collect(),
-    )?;
+    let flags = if flag_args.flags == "unset" {
+        0
+    } else {
+        Partition::parse_flags(
+            flag_args
+                .flags
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect(),
+        )?
+    };
 
     partition.flags = flags;
 
