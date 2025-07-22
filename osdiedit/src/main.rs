@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fs::File, io::Write};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufReader, BufWriter, Read, Seek, Write},
+};
 
 use clap::Parser;
 use dialoguer::Confirm;
@@ -17,13 +21,13 @@ struct Args {
 
 struct Command {
     description: String,
-    execute: Box<dyn FnMut(&mut Context, Vec<String>) -> Result<bool, String>>,
+    execute: Box<dyn FnMut(&mut Context, &Vec<String>) -> Result<bool, String>>,
 }
 
 impl Command {
     pub fn new(
         description: String,
-        execute: Box<dyn FnMut(&mut Context, Vec<String>) -> Result<bool, String>>,
+        execute: Box<dyn FnMut(&mut Context, &Vec<String>) -> Result<bool, String>>,
     ) -> Self {
         Command {
             description,
@@ -37,16 +41,19 @@ struct Context {
     disk: Disk,
 }
 
-fn info(context: &mut Context, _args: Vec<String>) -> Result<bool, String> {
+fn info(context: &mut Context, _args: &Vec<String>) -> Result<bool, String> {
     let disk = &context.disk;
-    println!("Information for disk '{}':", String::from_utf8_lossy(&disk.label).trim_end_matches('\0'));
+    println!(
+        "Information for disk '{}':",
+        String::from_utf8_lossy(&disk.label).trim_end_matches('\0')
+    );
     println!("Sector Size: {} bytes", disk.sector_size);
     println!("Total Size in Sectors: {}", disk.size);
     println!("Number of Partitions: {}", disk.partitions.len());
     Ok(false)
 }
 
-fn list(context: &mut Context, _args: Vec<String>) -> Result<bool, String> {
+fn list(context: &mut Context, _args: &Vec<String>) -> Result<bool, String> {
     let partitions = &context.disk.partitions;
     if partitions.is_empty() {
         println!("No partitions found.");
@@ -75,6 +82,72 @@ fn list(context: &mut Context, _args: Vec<String>) -> Result<bool, String> {
     Ok(false)
 }
 
+#[derive(Parser)]
+struct DumpArgs {
+    /// The index of the partition to dump
+    index: usize,
+
+    /// The file to dump the partition to
+    file: String,
+}
+
+fn dump(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
+    let dump_args = DumpArgs::try_parse_from(args).map_err(|e| e.to_string())?;
+    
+    let partition = match context.disk.partitions.get(dump_args.index) {
+        Some(partition) => partition,
+        None => {
+            return Err(format!(
+                "Partition index {} does not exist",
+                dump_args.index
+            ));
+        }
+    };
+    
+    let file = match File::create(&dump_args.file) {
+        Ok(file) => file,
+        Err(e) => {
+            return Err(format!(
+                "Error creating dump file {}: {}",
+                dump_args.file, e
+            ));
+        }
+    };
+
+    println!(
+        "Dumping partition '{}' (index {}) to file '{}'...",
+        partition.get_name(),
+        dump_args.index,
+        dump_args.file
+    );
+
+    let mut reader = BufReader::new(&context.file);
+    let mut writer = BufWriter::new(file);
+
+    reader.seek(std::io::SeekFrom::Start(
+        partition.start as u64 * context.disk.sector_size as u64,
+    )).map_err(|e| format!("Error seeking to partition start: {}", e))?;
+    for sector in partition.start..(partition.start + partition.size) {
+        let mut sector_data = vec![0u8; context.disk.sector_size];
+        reader
+            .read_exact(&mut sector_data)
+            .map_err(|e| format!("Error reading sector {}: {}", sector, e))?;
+        writer
+            .write_all(&sector_data)
+            .map_err(|e| format!("Error writing to dump file: {}", e))?;
+    }
+
+    writer
+        .flush()
+        .map_err(|e| format!("Error flushing dump file: {}", e))?;
+    println!(
+        "Partition '{}' dumped successfully to '{}'.",
+        partition.get_name(),
+        dump_args.file
+    );
+    Ok(false)
+}
+
 fn main() {
     let args = Args::parse();
     let file = match File::options().read(true).write(true).open(&args.disk) {
@@ -93,10 +166,7 @@ fn main() {
         }
     };
 
-    let mut context = Context {
-        file,
-        disk,
-    };
+    let mut context = Context { file, disk };
 
     let mut commands: HashMap<String, Command> = HashMap::new();
     commands.insert(
@@ -106,6 +176,10 @@ fn main() {
     commands.insert(
         "list".to_string(),
         Command::new("List all partitions".to_string(), Box::new(list)),
+    );
+    commands.insert(
+        "dump".to_string(),
+        Command::new("Dump a partition to a file".to_string(), Box::new(dump)),
     );
 
     let mut changelog: Vec<String> = Vec::new();
@@ -175,7 +249,7 @@ fn main() {
             }
             _ => {
                 if let Some(command) = commands.get_mut(command_name) {
-                    match (command.execute)(&mut context, args[1..].to_vec()) {
+                    match (command.execute)(&mut context, &args) {
                         Ok(changed) => {
                             if changed {
                                 changelog.push(args.join(" "));
