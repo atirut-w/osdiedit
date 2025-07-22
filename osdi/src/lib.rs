@@ -113,40 +113,65 @@ impl Partition {
         let mut flags = vec![];
 
         if self.flags & PartitionFlags::OS as u32 != 0 {
-            flags.push("OS".to_string());
+            flags.push("os".to_string());
         }
         if self.flags & PartitionFlags::Bootloader as u32 != 0 {
-            flags.push("Bootloader".to_string());
+            flags.push("bootloader".to_string());
         }
         if self.flags & PartitionFlags::PosixPermissions as u32 != 0 {
-            flags.push("POSIX".to_string());
+            flags.push("posix".to_string());
         }
         if self.flags & PartitionFlags::ReadOnly as u32 != 0 {
-            flags.push("RO".to_string());
+            flags.push("ro".to_string());
         }
         if self.flags & PartitionFlags::Hidden as u32 != 0 {
-            flags.push("Hidden".to_string());
+            flags.push("hidden".to_string());
         }
         if self.flags & PartitionFlags::System as u32 != 0 {
-            flags.push("System".to_string());
+            flags.push("system".to_string());
         }
         if self.flags & PartitionFlags::Zorya as u32 != 0 {
-            flags.push("Zorya".to_string());
+            flags.push("zorya".to_string());
         }
         if self.flags & PartitionFlags::Managed as u32 != 0 {
-            flags.push("Managed".to_string());
+            flags.push("managed".to_string());
         }
         if self.flags & PartitionFlags::Raw as u32 != 0 {
-            flags.push("Raw".to_string());
+            flags.push("raw".to_string());
         }
         if self.flags & PartitionFlags::Active as u32 != 0 {
-            flags.push("Active".to_string());
+            flags.push("active".to_string());
         }
         if self.flags & PartitionFlags::OEFI as u32 != 0 {
-            flags.push("OEFI".to_string());
+            flags.push("oefi".to_string());
         }
 
         flags
+    }
+
+    pub fn parse_flags(flags: Vec<String>) -> Result<u32, String> {
+        let mut result = 0;
+
+        for flag in flags {
+            match flag.as_str() {
+                "os" => result |= PartitionFlags::OS as u32,
+                "bootloader" => result |= PartitionFlags::Bootloader as u32,
+                "posix" => result |= PartitionFlags::PosixPermissions as u32,
+                "ro" => result |= PartitionFlags::ReadOnly as u32,
+                "hidden" => result |= PartitionFlags::Hidden as u32,
+                "system" => result |= PartitionFlags::System as u32,
+                "zorya" => result |= PartitionFlags::Zorya as u32,
+                "managed" => result |= PartitionFlags::Managed as u32,
+                "raw" => result |= PartitionFlags::Raw as u32,
+                "active" => result |= PartitionFlags::Active as u32,
+                "oefi" => result |= PartitionFlags::OEFI as u32,
+                _ => {
+                    return Err(format!("Unknown partition flag: {}", flag));
+                }
+            }
+        }
+
+        Ok(result)
     }
 
     pub fn get_type_id(&self) -> String {

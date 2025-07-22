@@ -41,11 +41,11 @@ struct Context {
     disk: Disk,
 }
 
-fn validate_partid(disk: &Disk, partid: usize) -> Result<&Partition, String> {
+fn validate_partid(disk: &Disk, partid: usize) -> Result<(), String> {
     if partid >= disk.partitions.len() {
         return Err(format!("Partition index {} does not exist", partid));
     }
-    Ok(&disk.partitions[partid])
+    Ok(())
 }
 
 fn info(context: &mut Context, _args: &Vec<String>) -> Result<bool, String> {
@@ -101,7 +101,8 @@ struct DumpArgs {
 fn dump(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
     let dump_args = DumpArgs::try_parse_from(args).map_err(|e| e.to_string())?;
 
-    let partition = validate_partid(&context.disk, dump_args.index)?;
+    validate_partid(&context.disk, dump_args.index)?;
+    let partition: &Partition = &context.disk.partitions[dump_args.index];
 
     let file = match File::create(&dump_args.file) {
         Ok(file) => file,
@@ -123,9 +124,11 @@ fn dump(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
     let mut reader = BufReader::new(&context.file);
     let mut writer = BufWriter::new(file);
 
-    reader.seek(std::io::SeekFrom::Start(
-        partition.start as u64 * context.disk.sector_size as u64,
-    )).map_err(|e| format!("Error seeking to partition start: {}", e))?;
+    reader
+        .seek(std::io::SeekFrom::Start(
+            partition.start as u64 * context.disk.sector_size as u64,
+        ))
+        .map_err(|e| format!("Error seeking to partition start: {}", e))?;
     for sector in partition.start..(partition.start + partition.size) {
         let mut sector_data = vec![0u8; context.disk.sector_size];
         reader
@@ -145,6 +148,35 @@ fn dump(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
         dump_args.file
     );
     Ok(false)
+}
+
+#[derive(Parser)]
+struct FlagArgs {
+    /// The index of the partition to modify
+    index: usize,
+
+    /// The flags to set (comma-separated).
+    /// Valid flags are as follows: os, bootloader, posix, ro, hidden, system, zorya, managed, raw, active, oefi
+    flags: String,
+}
+
+fn flag(context: &mut Context, args: &Vec<String>) -> Result<bool, String> {
+    let flag_args = FlagArgs::try_parse_from(args).map_err(|e| e.to_string())?;
+
+    validate_partid(&context.disk, flag_args.index)?;
+    let partition: &mut Partition = &mut context.disk.partitions[flag_args.index];
+
+    let flags = Partition::parse_flags(
+        flag_args
+            .flags
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect(),
+    )?;
+
+    partition.flags = flags;
+
+    Ok(true)
 }
 
 fn main() {
@@ -179,6 +211,10 @@ fn main() {
     commands.insert(
         "dump".to_string(),
         Command::new("Dump a partition to a file".to_string(), Box::new(dump)),
+    );
+    commands.insert(
+        "flag".to_string(),
+        Command::new("Set flags for a partition".to_string(), Box::new(flag)),
     );
 
     let mut changelog: Vec<String> = Vec::new();
@@ -243,6 +279,25 @@ fn main() {
                 }
             }
             "exit" => {
+                if !changelog.is_empty() {
+                    println!("You have the following changes:");
+                    for change in &changelog {
+                        println!("- {}", change);
+                    }
+                    if Confirm::new()
+                        .with_prompt("Do you want to exit without committing changes?")
+                        .default(false)
+                        .interact()
+                        .unwrap_or(false)
+                    {
+                        println!("Exiting without committing changes.");
+                        break;
+                    } else {
+                        println!("Please commit your changes before exiting.");
+                        continue;
+                    }
+                }
+
                 println!("Exiting...");
                 break;
             }
